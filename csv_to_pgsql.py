@@ -1,17 +1,38 @@
 import pandas as pd
 import sys
+from decimal import Decimal, InvalidOperation
 
 FIELD_MAX_LENGTHS = {
     "status": 50,
     "description": 255,
-    "remarks": 255
+    "remarks": 255,
+    "condition": 50,
 }
+
+DECIMAL_FIELDS = {"unit_val"}
 
 def trim_value(column: str, value: str) -> str:
     """
     Trim the value according to FIELD_MAX_LENGTHS, if defined.
     Also cleans up newlines and escapes single quotes.
     """
+    
+    col = column.lower()
+
+    if col == "condition" and (value is None or pd.isna(value) or str(value).strip() == ""):
+        return "'SERVICEABLE'"
+
+
+    if col in DECIMAL_FIELDS:
+        if value is None or pd.isna(value) or str(value).strip() == "":
+            return "0"
+        try:
+            # Normalize commas, convert to Decimal
+            cleaned = str(value).replace(",", "")
+            return str(Decimal(cleaned))
+        except InvalidOperation:
+            return "0"
+
     if value is None or pd.isna(value):
         return "NULL"
 
