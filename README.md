@@ -1,6 +1,6 @@
 ### how to use
 
-pipenv run python csv_to_pgsql.py `[CSV-FILE]` `[TABLE-NAME]` `[SQL-OUPUT]`
+`pipenv run python csv_to_pgsql.py` `[CSV-FILE]` `[TABLE-NAME]` `[SQL-OUPUT]`
 
 ### [CSV-FILE]
 `test1.csv`
