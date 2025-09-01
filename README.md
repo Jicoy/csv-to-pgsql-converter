@@ -12,6 +12,6 @@
 `output.sql <var>.sql`
 
 ### add new field with value
-`python csv_to_pgsql.py spmo_data1.csv registries output.sql registry_id:start=1:end=20`
+`python csv_to_pgsql.py spmo_data1.csv registries output.sql registry_id:start=1`
 
 

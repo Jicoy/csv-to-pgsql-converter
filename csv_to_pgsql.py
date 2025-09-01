@@ -82,7 +82,7 @@ def trim_value(column: str, value: str) -> str:
 
     return f"'{safe_val}'"
 
-def parse_extra_arg(arg):
+def parse_extra_arg(arg, num_rows):
     """
     Parse extra CLI arg like:
       registry_id:start=1:end=20
@@ -91,14 +91,13 @@ def parse_extra_arg(arg):
     if ":" not in arg:
         return None, None
 
-    col, range_def = arg.split(":", 1)
-    parts = dict(part.split("=") for part in range_def.split(":") if "=" in part)
+    col, defn = arg.split(":", 1)
+    parts = dict(part.split("=") for part in defn.split(":") if "=" in part)
 
-    if "start" in parts and "end" in parts:
+    if "start" in parts:
         try:
             start = int(parts["start"])
-            end = int(parts["end"])
-            return col, list(range(start, end + 1))
+            return col, list(range(start, start + num_rows))
         except ValueError:
             return None, None
     return None, None
@@ -106,22 +105,33 @@ def parse_extra_arg(arg):
 def csv_to_pgsql(csv_file, table_name, output_sql, extra_col=None, extra_values=None):
     df = pd.read_csv(csv_file)
 
-    if extra_col and extra_values:
-        if len(extra_values) < len(df):
-            raise ValueError(f"Not enough values for {extra_col}. Rows: {len(df)}, Values: {len(extra_values)}")
-        df[extra_col] = extra_values[: len(df)]
-
     with open(output_sql, "w", encoding="utf-8") as f:
-        for _, row in df.iterrows():
-            values = [trim_value(col, val) for col, val in row.items()]
-            insert_stmt = f"INSERT INTO {table_name} ({', '.join(df.columns)}) VALUES ({', '.join(values)});\n"
+        for i, row in df.iterrows():
+            values = []
+            columns = []
+
+            # Add extra_col first
+            if extra_col and extra_values:
+                columns.append(extra_col)
+                val = extra_values[i]
+                if isinstance(val, (int, float)):
+                    values.append(str(int(val)))
+                else:
+                    values.append(trim_value(extra_col, val))
+
+            # Then the CSV columns
+            for col, val in row.items():
+                columns.append(col)
+                values.append(trim_value(col, val))
+
+            insert_stmt = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(values)});\n"
             f.write(insert_stmt)
 
     print(f"SQL script written to {output_sql}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        print("Usage: python csv_to_pgsql.py <csv_file> <table_name> <output_sql> [extra_arg]")print("Usage: python csv_to_pgsql.py <csv_file> <table_name> <output_sql>")
+        print("Usage: python csv_to_pgsql.py <csv_file> <table_name> <output_sql> [extra_arg]")
         sys.exit(1)
 
     csv_file = sys.argv[1]
@@ -130,6 +140,7 @@ if __name__ == "__main__":
     
     extra_col, extra_values = None, None
     if len(sys.argv) > 4:
-        extra_col, extra_values = parse_extra_arg(sys.argv[4])
+        df_tmp = pd.read_csv(csv_file)
+        extra_col, extra_values = parse_extra_arg(sys.argv[4], len(df_tmp))
 
     csv_to_pgsql(csv_file, table_name, output_sql, extra_col, extra_values)
